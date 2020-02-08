@@ -1,6 +1,6 @@
 import jack
 from queue import Queue
-import re
+import fnmatch
 import sys
 import threading
 
@@ -32,7 +32,7 @@ class Connections:
 
     def check_output_port(self, output_port):
         for output_port_rule in self.output_rules:
-            if re.search(output_port_rule["match"], output_port.name):
+            if fnmatch.fnmatchcase(output_port.name, output_port_rule["match"]):
                 for connection in output_port_rule["connections"]:
                     policy = connection[0]
 
