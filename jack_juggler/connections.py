@@ -37,16 +37,19 @@ class Connections:
                     policy = connection[0]
 
                     if policy == "always":
-                        input_port = self.client.get_port_by_name(connection[1])
+                        try:
+                            input_port = self.client.get_port_by_name(connection[1])
 
-                        if not self.port_is_connected(output_port, input_port):
-                            print("Always", output_port.name, input_port.name)
-                            self.client.connect(output_port, input_port)
-                    elif policy == "never":
-                        for input_port in self.client.get_all_connections(output_port):
-                            if self.port_is_connected(output_port, input_port):
-                                print("Never", output_port.name, input_port.name)
-                                self.client.disconnect(output_port, input_port)
+                            if not self.port_is_connected(output_port, input_port):
+                                print("Always", output_port.name, input_port.name)
+                                self.client.connect(output_port, input_port)
+                            elif policy == "never":
+                                for input_port in self.client.get_all_connections(output_port):
+                                    if self.port_is_connected(output_port, input_port):
+                                        print("Never", output_port.name, input_port.name)
+                                        self.client.disconnect(output_port, input_port)
+                        except jack.JackError:
+                            print("JackAudio error")
 
     def check_queue(self):
         while True:
