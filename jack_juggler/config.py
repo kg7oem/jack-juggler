@@ -39,17 +39,17 @@ class ConfigFile:
         raise RuntimeError(message, self.path, self.current_line)
 
     def parse_section(self, line):
-        parts = line.split()
+        result = re.match("^([^\s]+)\s+(.*)", line)
 
-        if len(parts) != 2:
-            self.raise_parse_error("Expected two parts for section line")
+        if not result:
+            self.raise_parse_error("Invalid section line")
 
-        return { "port_type": parts[0], "port_match": parts[1], "connections": [] }
+        return { "port_type": result.group(1), "port_match": result.group(2), "connections": [] }
 
     def parse_rule(self, line):
-        parts = line.split()
+        result = re.match("^\s+([^\s]+)\s+(.*)", line)
 
-        if len(parts) != 2:
-            self.raise_parse_error("Expected 2 parts for rule line")
+        if not result:
+            self.raise_parse_error("Invalid policy line")
 
-        return parts
+        return [ result.group(1), result.group(2) ]

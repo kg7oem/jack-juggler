@@ -42,6 +42,11 @@ class Connections:
                         if not self.port_is_connected(output_port, input_port):
                             print("Always", output_port.name, input_port.name)
                             self.client.connect(output_port, input_port)
+                    elif policy == "never":
+                        for input_port in self.client.get_all_connections(output_port):
+                            if self.port_is_connected(output_port, input_port):
+                                print("Never", output_port.name, input_port.name)
+                                self.client.disconnect(output_port, input_port)
 
     def check_queue(self):
         while True:
