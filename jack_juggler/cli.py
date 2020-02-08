@@ -3,7 +3,7 @@ from jack_juggler.connections import Connections
 def main():
     connections = Connections()
 
-    connections.add_always("^rig-play:out_0$", [ "system:playback_1" ])
+    connections.add_always("^rig-play:out_0$", "system:playback_1")
 
     connections.run()
 

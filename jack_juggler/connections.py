@@ -1,4 +1,5 @@
 import jack
+from queue import Queue
 import re
 import sys
 import threading
@@ -6,28 +7,24 @@ import threading
 class Connections:
     def __init__(self):
         self.always_rules = {}
-
         self.started = False
-        self.done_event = threading.Event()
+        self.notification_queue = Queue()
 
         self.client = jack.Client("jack-juggler", True)
         self.client.set_port_registration_callback(self.jack_port_registration_callback)
-        self.client.set_port_connect_callback(self.jack_port_connect_callback)
         self.client.set_shutdown_callback(self.jack_shutdown_callback)
 
     def jack_shutdown_callback(self, status, reason):
         print('JACK shutdown; status: ' + status, "; reason " + reason)
-        self.done_event.set()
+        self.shutdown()
 
     def jack_port_registration_callback(self, port, registered):
         if registered:
-            print("Register", port.name)
+            self.notification_queue.put([ "register", port ])
         else:
-            print("Unregister", port.name)
+            self.notification_queue.put([ "unregister", port ])
 
-        if not registered or not port.is_output:
-            return
-
+    def check_output_port(self, port):
         for output_port_rule in self.always_rules.keys():
             if re.search(output_port_rule, port.name):
                 for input_port_name in self.always_rules[output_port_rule]:
@@ -36,51 +33,41 @@ class Connections:
                     try:
                         self.client.connect(port, input_port_name)
                     except jack.JackError:
-                        print("Could not connect", port.name, input_port_name)
+                        print("Could not connect jack ports", port.name, input_port_name)
 
-    def jack_port_connect_callback(self, output, input, connected):
-        if connected:
-            print("Connect", output, input)
-        else:
-            print("Disconnect", output, input)
+    def check_queue(self):
+        while True:
+            notification = self.notification_queue.get(True)
+            notification_type = notification[0]
 
-        # not monitoring ports that need to be disconnected
-        if connected:
-            return
+            if notification_type == "register":
+                port = notification[1]
 
-        if output.name not in self.always_rules:
-            return
-
-        always_list = self.always_rules[output.name]
-
-        for rule in always_list:
-            if re.search(rule, output.name):
-                print("Always", output.name, input.name)
-                self.client.connect(output, input)
-
-    def start(self):
-        assert(self.started == False)
-
-        self.client.activate()
+                print("Register", port.name)
+                self.check_output_port(port)
+            elif notification_type == "unregister":
+                port = notification[1]
+                print("Unregister", port.name)
+            else:
+                print("Unknown", notification)
 
     def run(self):
         if not self.started:
-            self.start()
+            self.client.activate()
             self.started = True
 
         try:
-            self.done_event.wait()
+            self.check_queue()
         except KeyboardInterrupt:
             self.shutdown()
 
     def shutdown(self):
-        sys.exit(0)
+        self.client.deactivate()
+        self.client.close()
 
-    def add_always(self, match, input_port_list):
+    def add_always(self, match, input_port_name):
         if match not in self.always_rules:
             self.always_rules[match] = []
 
         always_list = self.always_rules[match]
-
-        for input_port in input_port_list:
-            always_list.append(input_port)
+        always_list.append(input_port_name)
