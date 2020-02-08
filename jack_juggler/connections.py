@@ -6,7 +6,7 @@ import threading
 
 class Connections:
     def __init__(self):
-        self.always_rules = {}
+        self.output_rules = []
         self.started = False
         self.notification_queue = Queue()
 
@@ -24,16 +24,24 @@ class Connections:
         else:
             self.notification_queue.put([ "unregister", port ])
 
-    def check_output_port(self, port):
-        for output_port_rule in self.always_rules.keys():
-            if re.search(output_port_rule, port.name):
-                for input_port_name in self.always_rules[output_port_rule]:
-                    print("Always", port.name, input_port_name)
+    def port_is_connected(self, output_port, input_port):
+        for connected_port in self.client.get_all_connections(output_port):
+            if (connected_port == input_port):
+                return True
+            return False
 
-                    try:
-                        self.client.connect(port, input_port_name)
-                    except jack.JackError:
-                        print("Could not connect jack ports", port.name, input_port_name)
+    def check_output_port(self, output_port):
+        for output_port_rule in self.output_rules:
+            if re.search(output_port_rule["match"], output_port.name):
+                for connection in output_port_rule["connections"]:
+                    policy = connection[0]
+
+                    if policy == "always":
+                        input_port = self.client.get_port_by_name(connection[1])
+
+                        if not self.port_is_connected(output_port, input_port):
+                            print("Always", output_port.name, input_port.name)
+                            self.client.connect(output_port, input_port)
 
     def check_queue(self):
         while True:
@@ -65,9 +73,19 @@ class Connections:
         self.client.deactivate()
         self.client.close()
 
-    def add_always(self, match, input_port_name):
-        if match not in self.always_rules:
-            self.always_rules[match] = []
+    def add_output_rule(self, match, rule, input_port_name):
+        for output_rule in self.output_rules:
+            if output_rule["match"] == match:
+                output_rule["connections"].append([rule, input_port_name])
+                return
 
-        always_list = self.always_rules[match]
-        always_list.append(input_port_name)
+        self.output_rules.append({ "match": match, "connections": [ [ rule, input_port_name] ] })
+
+    def load_file(self, config_file):
+        for section in config_file.sections:
+
+            if section["port_type"] == "output":
+                for connection in section["connections"]:
+                    self.add_output_rule(section["port_match"], connection[0], connection[1])
+            else:
+                raise RuntimeError("can not handle port type: ", section["port_type"])
