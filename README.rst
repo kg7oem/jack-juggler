@@ -1,0 +1,1 @@
+Jack client connection manager
