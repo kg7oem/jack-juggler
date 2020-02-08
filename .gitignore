@@ -2,4 +2,4 @@ dist/
 build
 *.egg-info
 
-jack_juggler/.__pycache__
+jack_juggler/__pycache__
