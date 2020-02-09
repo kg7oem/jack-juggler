@@ -31,26 +31,27 @@ class Connections:
 
         return False
 
-    def check_output_port(self, output_port):
-        for output_port_rule in self.output_rules:
-            if fnmatch.fnmatchcase(output_port.name, output_port_rule["match"]):
-                for connection in output_port_rule["connections"]:
-                    policy = connection[0]
+    def check_port(self, check_port):
+        if check_port.is_output:
+            for output_port_rule in self.output_rules:
+                if fnmatch.fnmatchcase(check_port.name, output_port_rule["match"]):
+                    for connection in output_port_rule["connections"]:
+                        policy = connection[0]
 
-                    if policy == "always":
-                        try:
-                            input_port = self.client.get_port_by_name(connection[1])
+                        if policy == "always":
+                            try:
+                                input_port = self.client.get_port_by_name(connection[1])
 
-                            if not self.port_is_connected(output_port, input_port):
-                                print("Always", output_port.name, input_port.name)
-                                self.client.connect(output_port, input_port)
-                            elif policy == "never":
-                                for input_port in self.client.get_all_connections(output_port):
-                                    if self.port_is_connected(output_port, input_port):
-                                        print("Never", output_port.name, input_port.name)
-                                        self.client.disconnect(output_port, input_port)
-                        except jack.JackError:
-                            print("JackAudio error")
+                                if not self.port_is_connected(check_port, input_port):
+                                    print("Always", check_port.name, input_port.name)
+                                    self.client.connect(check_port, input_port)
+                                elif policy == "never":
+                                    for input_port in self.client.get_all_connections(check_port):
+                                        if self.port_is_connected(check_port, input_port):
+                                            print("Never", check_port.name, input_port.name)
+                                            self.client.disconnect(check_port, input_port)
+                            except jack.JackError:
+                                print("JackAudio error")
 
     def get_all_output_ports(self):
         return self.client.get_ports(".", True, False, False, True)
@@ -58,12 +59,12 @@ class Connections:
     def get_all_input_ports(self):
         return self.client.get_ports(".", True, False, True, False)
 
-    def add_existing(self):
+    def check_existing(self):
         for output_port in self.get_all_output_ports():
-            self.notification_queue.put([ "register", output_port ])
+            self.check_port(output_port)
 
         for input_port in self.get_all_input_ports():
-            self.notification_queue.put([ "register", input_port ])
+            self.check_port(input_port)
 
     def check_queue(self):
         while True:
@@ -74,7 +75,9 @@ class Connections:
                 port = notification[1]
 
                 print("Register", port.name)
-                self.check_output_port(port)
+                # FIXME gross workaround for not connecting everything together at startup
+                # or when a new port is registered
+                self.check_existing()
             elif notification_type == "unregister":
                 port = notification[1]
                 print("Unregister", port.name)
@@ -83,11 +86,12 @@ class Connections:
 
     def run(self):
         if not self.started:
+            self.check_existing()
             self.client.activate()
+
             self.started = True
 
         try:
-            self.add_existing()
             self.check_queue()
         except KeyboardInterrupt:
             self.shutdown()
