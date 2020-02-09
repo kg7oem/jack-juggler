@@ -51,6 +51,19 @@ class Connections:
                         except jack.JackError:
                             print("JackAudio error")
 
+    def get_all_output_ports(self):
+        return self.client.get_ports(".", True, False, False, True)
+
+    def get_all_input_ports(self):
+        return self.client.get_ports(".", True, False, True, False)
+
+    def add_existing(self):
+        for output_port in self.get_all_output_ports():
+            self.notification_queue.put([ "register", output_port ])
+
+        for input_port in self.get_all_input_ports():
+            self.notification_queue.put([ "register", input_port ])
+
     def check_queue(self):
         while True:
             notification = self.notification_queue.get(True)
@@ -73,6 +86,7 @@ class Connections:
             self.started = True
 
         try:
+            self.add_existing()
             self.check_queue()
         except KeyboardInterrupt:
             self.shutdown()
