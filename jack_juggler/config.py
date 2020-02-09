@@ -17,11 +17,9 @@ class ConfigFile:
                 line = line.rstrip()
 
                 if re.search("^\s*#", line):
-                    print("skipping comment:", line)
                     continue
 
                 if re.search("^\s*$", line):
-                    print("skipping only whitespace")
                     continue
 
                 if not re.search("^\s+", line):
