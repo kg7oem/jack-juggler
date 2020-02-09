@@ -24,11 +24,12 @@ class Connections:
         else:
             self.notification_queue.put([ "unregister", port ])
 
-    def port_is_connected(self, output_port, input_port):
-        for connected_port in self.client.get_all_connections(output_port):
-            if (connected_port == input_port):
+    def port_is_connected(self, port_a, port_b):
+        for connected_port in self.client.get_all_connections(port_b):
+            if (port_a == connected_port):
                 return True
-            return False
+
+        return False
 
     def check_output_port(self, output_port):
         for output_port_rule in self.output_rules:
